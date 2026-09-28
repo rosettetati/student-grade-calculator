@@ -1,0 +1,5 @@
+Name        Surname    HW1   HW2   HW3   HW4   HW5   Exam
+John        Doe          8     9    10     6    10      9
+Alice       Smith        7    10     8     5     4      6
+Bob         Johnson      10    9     9     8     7      8
+Emma        Brown        6     7     8     9    10      7
