@@ -6,80 +6,22 @@
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
-#include <numeric>
+#include "Student.h"
 
-class Person {
-protected:
-    std::string firstName;
-    std::string surname;
-
-public:
-    Person(std::string f = "", std::string s = "") : firstName(f), surname(s) {}
-    virtual ~Person() = default;
-    std::string getFirstName() const { return firstName; }
-    std::string getSurname() const { return surname; }
-};
-
-class Student : public Person {
-private:
-    std::vector<int> homeworkScores;
-    int examScore;
-    double finalAvg;
-    double finalMed;
-
-    double calculateAverage() const {
-        if (homeworkScores.empty()) return examScore * 0.6;
-        double sumHw = std::accumulate(homeworkScores.begin(), homeworkScores.end(), 0.0);
-        return (sumHw / homeworkScores.size() * 0.4) + (examScore * 0.6);
-    }
-
-    double calculateMedian() const {
-        if (homeworkScores.empty()) return examScore * 0.6;
-        std::vector<int> temp = homeworkScores;
-        std::sort(temp.begin(), temp.end());
-        double medHw = 0.0;
-        size_t size = temp.size();
-        if (size % 2 == 0) {
-            medHw = (temp[size / 2 - 1] + temp[size / 2]) / 2.0;
-        } else {
-            medHw = temp[size / 2];
-        }
-        return (medHw * 0.4) + (examScore * 0.6);
-    }
-
-public:
-    Student() : Person(), examScore(0), finalAvg(0.0), finalMed(0.0) {}
-
-    Student(std::string f, std::string s, std::vector<int> hw, int exam)
-        : Person(f, s), homeworkScores(hw), examScore(exam) {
-        computeFinals();
-    }
-
-    // Rule of Three
-    Student(const Student& other) = default;
-    Student& operator=(const Student& other) = default;
-    ~Student() override = default;
-
-    void computeFinals() {
-        finalAvg = calculateAverage();
-        finalMed = calculateMedian();
-    }
-
-    double getFinalAvg() const { return finalAvg; }
-
-    static bool compareByName(const Student& a, const Student& b) {
-        if (a.firstName != b.firstName)
-            return a.firstName < b.firstName;
-        return a.surname < b.surname;
-    }
-};
-
-int main() {
-    // Set to test the 10,000 dataset file
-    std::string filename = "students10000.txt";
+int main(int argc, char* argv[]) {
+    // Default to 10k if no argument is provided, otherwise use the filename passed in the terminal
+    std::string filename = (argc > 1) ? argv[1] : "students10000.txt";
 
     std::vector<Student> students;
-    students.reserve(10000); // Pre-allocate memory for efficiency
+    
+    // Dynamic reserve hint based on file name to optimize memory allocation for large scales
+    if (filename.find("1000000") != std::string::npos) {
+        students.reserve(1000000); // Reserve for 1 Million
+    } else if (filename.find("100000") != std::string::npos) {
+        students.reserve(100000);  // Reserve for 100k
+    } else {
+        students.reserve(10000);   // Reserve for 10k / default
+    }
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -90,7 +32,7 @@ int main() {
     }
 
     if (!file.is_open()) {
-        std::cerr << "Error: Could not open data file!\n";
+        std::cerr << "Error: Could not open data file: " << filename << "\n";
         return 1;
     }
 
@@ -134,7 +76,7 @@ int main() {
     std::chrono::duration<double> elapsed = end_time - start_time;
 
     // Output Benchmarking Results
-    std::cout << "--- Performance Report ---\n";
+    std::cout << "--- Version 0.3 Performance Report ---\n";
     std::cout << "Data source file: " << filename << "\n";
     std::cout << "Total students processed: " << students.size() << "\n";
     std::cout << "Passing students: " << passingStudents.size() << "\n";
