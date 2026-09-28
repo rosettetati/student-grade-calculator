@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <random>
+#include <chrono>
 #include <iomanip>
 #include <numeric>
 
@@ -14,12 +14,8 @@ protected:
     std::string surname;
 
 public:
-    // Constructor
     Person(std::string f = "", std::string s = "") : firstName(f), surname(s) {}
-
-    // Virtual destructor for safe inheritance
     virtual ~Person() = default;
-
     std::string getFirstName() const { return firstName; }
     std::string getSurname() const { return surname; }
 };
@@ -31,15 +27,12 @@ private:
     double finalAvg;
     double finalMed;
 
-    // Helper to calculate average
     double calculateAverage() const {
-        if (homeworkScores.empty()) return examScore * 0.6; // fallback if no HW
+        if (homeworkScores.empty()) return examScore * 0.6;
         double sumHw = std::accumulate(homeworkScores.begin(), homeworkScores.end(), 0.0);
-        double avgHw = sumHw / homeworkScores.size();
-        return (avgHw * 0.4) + (examScore * 0.6);
+        return (sumHw / homeworkScores.size() * 0.4) + (examScore * 0.6);
     }
 
-    // Helper to calculate median
     double calculateMedian() const {
         if (homeworkScores.empty()) return examScore * 0.6;
         std::vector<int> temp = homeworkScores;
@@ -55,89 +48,25 @@ private:
     }
 
 public:
-    // Default constructor
     Student() : Person(), examScore(0), finalAvg(0.0), finalMed(0.0) {}
 
-    // Parameterized constructor
     Student(std::string f, std::string s, std::vector<int> hw, int exam)
         : Person(f, s), homeworkScores(hw), examScore(exam) {
         computeFinals();
     }
 
-    // --- Rule of Three Implementation ---
-
-    // 1. Copy Constructor
-    Student(const Student& other)
-        : Person(other.firstName, other.surname),
-          homeworkScores(other.homeworkScores),
-          examScore(other.examScore),
-          finalAvg(other.finalAvg),
-          finalMed(other.finalMed) {}
-
-    // 2. Copy Assignment Operator
-    Student& operator=(const Student& other) {
-        if (this != &other) {
-            Person::operator=(other);
-            homeworkScores = other.homeworkScores;
-            examScore = other.examScore;
-            finalAvg = other.finalAvg;
-            finalMed = other.finalMed;
-        }
-        return *this;
-    }
-
-    // 3. Destructor
+    // Rule of Three
+    Student(const Student& other) = default;
+    Student& operator=(const Student& other) = default;
     ~Student() override = default;
 
-    // --- Computation ---
     void computeFinals() {
         finalAvg = calculateAverage();
         finalMed = calculateMedian();
     }
 
-    // --- Overloaded Input (cin) ---
-    friend std::istream& operator>>(std::istream& is, Student& s) {
-        std::cout << "Enter First Name and Surname: ";
-        is >> s.firstName >> s.surname;
+    double getFinalAvg() const { return finalAvg; }
 
-        s.homeworkScores.clear();
-        std::cout << "Enter homework scores (-1 to stop): ";
-        int score;
-        while (is >> score && score != -1) {
-            s.homeworkScores.push_back(score);
-        }
-
-        std::cout << "Enter Exam score: ";
-        is >> s.examScore;
-
-        s.computeFinals();
-        return is;
-    }
-
-    // --- Overloaded Output (cout) ---
-    friend std::ostream& operator<<(std::ostream& os, const Student& s) {
-        os << std::left << std::setw(12) << s.firstName
-           << std::setw(12) << s.surname
-           << std::setw(15) << std::fixed << std::setprecision(2) << s.finalAvg
-           << std::setw(12) << s.finalMed;
-        return os;
-    }
-
-    // Random generator for scores
-    void generateRandomScores(int numHw) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> distrib(1, 10);
-
-        homeworkScores.clear();
-        for (int i = 0; i < numHw; ++i) {
-            homeworkScores.push_back(distrib(gen));
-        }
-        examScore = distrib(gen);
-        computeFinals();
-    }
-
-    // Sorting comparator by name
     static bool compareByName(const Student& a, const Student& b) {
         if (a.firstName != b.firstName)
             return a.firstName < b.firstName;
@@ -146,54 +75,71 @@ public:
 };
 
 int main() {
+    // Set to test the 10,000 dataset file
+    std::string filename = "students10000.txt";
+
     std::vector<Student> students;
+    students.reserve(10000); // Pre-allocate memory for efficiency
 
-    // Option to read from "Students.txt" if available, or populate/demo
-    std::ifstream file("Students.txt");
-    if (file.is_open()) {
-        std::string line;
-        // Skip header
-        std::getline(file, line);
-        while (std::getline(file, line)) {
-            std::stringstream ss(line);
-            std::string f, s;
-            ss >> f >> s;
-            std::vector<int> hw;
-            int score;
-            // Read all tokens except the last one (exam)
-            std::vector<int> tokens;
-            while (ss >> score) {
-                tokens.push_back(score);
-            }
-            if (!tokens.empty()) {
-                int exam = tokens.back();
-                tokens.pop_back();
-                students.emplace_back(f, s, tokens, exam);
-            }
-        }
-        file.close();
-    } else {
-        // Fallback demo: Create sample students with random scores if file doesn't exist yet
-        students.emplace_back("John", "Doe", std::vector<int>(), 0);
-        students.back().generateRandomScores(5);
+    auto start_time = std::chrono::high_resolution_clock::now();
 
-        students.emplace_back("Alice", "Smith", std::vector<int>(), 0);
-        students.back().generateRandomScores(5);
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        filename = "Students.txt"; // Fallback
+        file.open(filename);
     }
 
-    // Sort students by name
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open data file!\n";
+        return 1;
+    }
+
+    std::string line;
+    std::getline(file, line); // Skip header
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string f, s;
+        ss >> f >> s;
+        std::vector<int> tokens;
+        int score;
+        while (ss >> score) {
+            tokens.push_back(score);
+        }
+        if (!tokens.empty()) {
+            int exam = tokens.back();
+            tokens.pop_back();
+            students.emplace_back(f, s, tokens, exam);
+        }
+    }
+    file.close();
+
+    // Sort students alphabetically
     std::sort(students.begin(), students.end(), Student::compareByName);
 
-    // Display formatted results
-    std::cout << std::left << std::setw(12) << "Name"
-              << std::setw(12) << "Surname"
-              << std::setw(15) << "Final (Avg.)"
-              << std::setw(12) << "Final (Med.)" << "\n";
-    std::cout << "----------------------------------------------------\n";
+    // Split into passing (>= 5.0) and failing (< 5.0) groups
+    std::vector<Student> passingStudents;
+    std::vector<Student> failingStudents;
+    passingStudents.reserve(students.size());
+    failingStudents.reserve(students.size());
 
     for (const auto& student : students) {
-        std::cout << student << "\n";
+        if (student.getFinalAvg() >= 5.0) {
+            passingStudents.push_back(student);
+        } else {
+            failingStudents.push_back(student);
+        }
     }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+
+    // Output Benchmarking Results
+    std::cout << "--- Performance Report ---\n";
+    std::cout << "Data source file: " << filename << "\n";
+    std::cout << "Total students processed: " << students.size() << "\n";
+    std::cout << "Passing students: " << passingStudents.size() << "\n";
+    std::cout << "Failing students: " << failingStudents.size() << "\n";
+    std::cout << "Total processing time (Read + Sort + Split): " << elapsed.count() << " seconds\n";
 
     return 0;
 }
